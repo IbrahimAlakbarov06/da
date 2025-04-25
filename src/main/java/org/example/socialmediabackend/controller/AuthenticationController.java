@@ -1,12 +1,11 @@
 package org.example.socialmediabackend.controller;
 
-import org.example.socialmediabackend.dto.LoginUserDto;
-import org.example.socialmediabackend.dto.RegisterUserDto;
-import org.example.socialmediabackend.dto.VerifyUserDto;
+import org.example.socialmediabackend.dto.*;
 import org.example.socialmediabackend.model.User;
 import org.example.socialmediabackend.responses.LoginResponse;
 import org.example.socialmediabackend.service.AuthenticationService;
 import org.example.socialmediabackend.service.JwtService;
+import org.example.socialmediabackend.service.OAuth2Service;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,12 +13,16 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class AuthenticationController {
     private final JwtService jwtService;
-
     private final AuthenticationService authenticationService;
+    private final OAuth2Service oAuth2Service;
 
-    public AuthenticationController(JwtService jwtService, AuthenticationService authenticationService) {
+    public AuthenticationController(
+            JwtService jwtService,
+            AuthenticationService authenticationService,
+            OAuth2Service oAuth2Service) {
         this.jwtService = jwtService;
         this.authenticationService = authenticationService;
+        this.oAuth2Service = oAuth2Service;
     }
 
     @PostMapping("/register")
@@ -32,6 +35,30 @@ public class AuthenticationController {
     public ResponseEntity<LoginResponse> authenticate(@RequestBody LoginUserDto loginUserDto){
         User authenticatedUser = authenticationService.authenticate(loginUserDto);
         String jwtToken = jwtService.generateToken(authenticatedUser);
+        LoginResponse loginResponse = new LoginResponse(jwtToken, jwtService.getExpirationTime());
+        return ResponseEntity.ok(loginResponse);
+    }
+
+    @PostMapping("/social/google")
+    public ResponseEntity<LoginResponse> googleLogin(@RequestBody SocialLoginDto socialLoginDto) {
+        User user = oAuth2Service.processGoogleToken(socialLoginDto.getToken());
+        String jwtToken = jwtService.generateToken(user);
+        LoginResponse loginResponse = new LoginResponse(jwtToken, jwtService.getExpirationTime());
+        return ResponseEntity.ok(loginResponse);
+    }
+
+    @PostMapping("/social/facebook")
+    public ResponseEntity<LoginResponse> facebookLogin(@RequestBody SocialLoginDto socialLoginDto) {
+        User user = oAuth2Service.processFacebookToken(socialLoginDto.getToken());
+        String jwtToken = jwtService.generateToken(user);
+        LoginResponse loginResponse = new LoginResponse(jwtToken, jwtService.getExpirationTime());
+        return ResponseEntity.ok(loginResponse);
+    }
+
+    @PostMapping("/social/apple")
+    public ResponseEntity<LoginResponse> appleLogin(@RequestBody SocialLoginDto socialLoginDto) {
+        User user = oAuth2Service.processAppleToken(socialLoginDto.getToken());
+        String jwtToken = jwtService.generateToken(user);
         LoginResponse loginResponse = new LoginResponse(jwtToken, jwtService.getExpirationTime());
         return ResponseEntity.ok(loginResponse);
     }
@@ -57,32 +84,20 @@ public class AuthenticationController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequestDto requestDto) {
         try {
-            authenticationService.initiatePasswordReset(email);
+            authenticationService.sendPasswordResetEmail(requestDto.getEmail());
             return ResponseEntity.ok("Password reset code sent to your email");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    @PostMapping("/verify-reset-code")
-    public ResponseEntity<?> verifyResetCode(@RequestBody VerifyUserDto verifyUserDto) {
-        try {
-            authenticationService.verifyResetCode(verifyUserDto);
-            return ResponseEntity.ok("Reset code verified successfully");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestParam String email,
-                                           @RequestParam String resetCode,
-                                           @RequestParam String newPassword) {
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordDto resetPasswordDto) {
         try {
-            authenticationService.resetPassword(email, resetCode, newPassword);
-            return ResponseEntity.ok("Password reset successfully");
+            authenticationService.resetPassword(resetPasswordDto);
+            return ResponseEntity.ok("Password reset successful");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
