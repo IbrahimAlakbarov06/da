@@ -3,6 +3,7 @@ package org.example.socialmediabackend.service;
 import jakarta.mail.MessagingException;
 import org.example.socialmediabackend.dto.LoginUserDto;
 import org.example.socialmediabackend.dto.RegisterUserDto;
+import org.example.socialmediabackend.dto.ResetPasswordDto;
 import org.example.socialmediabackend.dto.VerifyUserDto;
 import org.example.socialmediabackend.model.User;
 import org.example.socialmediabackend.repository.UserRepository;
@@ -152,6 +153,15 @@ public class AuthenticationService {
         } else {
             throw new RuntimeException("User not found");
         }
+    }
+// Add these methods to your AuthenticationService class:
+
+    public void sendPasswordResetEmail(String email) {
+        initiatePasswordReset(email);
+    }
+
+    public void resetPassword(ResetPasswordDto resetPasswordDto) {
+        resetPassword(resetPasswordDto.getEmail(), resetPasswordDto.getResetCode(), resetPasswordDto.getNewPassword());
     }
 
     public void resetPassword(String email, String resetCode, String newPassword) {
